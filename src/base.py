@@ -27,3 +27,25 @@ class BaseHandler(object):
         request.finish()
 
 
+class Controller(object):
+    def __init__(self, db, *args, **kwargs):
+        super(Controller, self).__init__(*args, **kwargs)
+        self.db = db
+        self._db = getattr(db, self.collection)
+
+    def id(self):
+        return id(self)
+
+
+class ParametrizedSingleton(object):
+    def __new__(cls, param, *args, **kwargs):
+        try:
+            if param in cls._instances:
+                return cls._instances[param]
+        except AttributeError:
+            cls._instances = {}
+
+        instance = super(ParametrizedSingleton, cls).__new__(cls, *args, **kwargs)
+        cls._instances[param] = instance
+        return instance
+

@@ -20,10 +20,15 @@ class Root(Resource):
 # mongo connection
 db = txmongo.lazyMongoConnectionPool()
 
+db_foo = db.foo
+
 # http resources
 root = Root()
-root.putChild("sub", SubscribeHandler(db.foo))
-root.putChild("pub", PublishHandler(db.foo))
+root.putChild("sub", SubscribeHandler(db_foo))
+root.putChild("pub", PublishHandler(db_foo))
 
 reactor.listenTCP(8080, server.Site(root))
+
+# print dir(reactor)
+
 reactor.run()
