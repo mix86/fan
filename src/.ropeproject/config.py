@@ -79,6 +79,7 @@ def set_prefs(prefs):
     # appear in the importing namespace.
     prefs['ignore_bad_imports'] = False
     prefs.add('python_path', '/Users/mixael/dev/twisted/')
+    prefs.add('python_path', '/Users/mixael/dev/feedparser/feedparser')
 
 
 def project_opened(project):

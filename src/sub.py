@@ -1,12 +1,11 @@
 # encoding: utf-8
-from datetime import datetime
+import simplejson as json
 from twisted.internet import reactor
 from twisted.web.resource import Resource
 from twisted.internet.protocol import Protocol
 from twisted.python import log
 from twisted.web.client import Agent
 from twisted.web.http_headers import Headers
-from twisted.internet.defer import Deferred
 
 from twisted.web.server import NOT_DONE_YET
 from base import BaseHandler
@@ -20,82 +19,105 @@ class Subscription(object):
         self.db = db
         self._db = db.sub
 
-    def find(self, success, host=None, feed=None, failure=None):
+    def find(self, cb_url=None, topic=None):
         q = {}
 
-        if host:
-            q.update({"host": host})
+        if cb_url:
+            q.update({"cb_url": cb_url})
 
-        if feed:
-            q.update({"feed": feed})
+        if topic:
+            q.update({"topic": topic})
 
         d = self._db.find(q)
-        d.addCallback(*success)
 
-        if failure:
-            d.addErrback(*failure)
+        return d
 
-    def create(self, host, feed):
-        self.find(host=host, feed=feed, success=(self._really_create, host, feed))
+    def create(self, cb_url, topic):
 
-    def _really_create(self, exist, host, feed):
-        if exist:
-            log.msg('Did nothing. Host %(host)s already subscribed on %(feed)s\n' % {
-                'host': host,
-                'feed': feed,
-            })
-            return
+        self.db.sub.update({
+            'topic': topic,
+            'cb_url': cb_url,
+        }, {
+            '$set': {
+                'topic': topic,
+                'cb_url': cb_url,
+            },
+        }, upsert=True, safe=True)
 
-        self._db.insert({"feed": feed, 'host': host})
-
-        log.msg('Host %(host)s subscribed on %(feed)s\n' % {
-            'host': host,
-            'feed': feed,
+        log.msg('Host %(cb_url)s subscribed on %(topic)s\n' % {
+            'cb_url': cb_url,
+            'topic': topic,
         })
 
-    def remove(self, host, feed=None):
-
-        if feed is not None:
-            raise NotImplementedError
-
-        self._db.remove({'host': host})
-
-        log.msg('All subscribtions of host %(host)s removed\n' % {
-            'host': host,
+    def remove(self, cb_url, topic):
+        self.db.sub.remove({'cb_url': cb_url, 'topic': topic})
+        log.msg('Subscribtions of %(cb_url)s on %(topic)s removed\n' % {
+            'cb_url': cb_url,
+            'topic': topic,
         })
 
-    def send_news(self, feed):
-        log.msg('Send news called for %s' % feed)
-        self.find(feed=feed, success=(self._really_send_news, feed))
+    def send_news(self, topic):
+        log.msg('Send news called for %s' % topic)
+        d = self.find(topic=topic)
+        d.addCallback(self._really_send_news, topic)
 
-    def _really_send_news(self, sub_list, feed):
+    def _really_send_news(self, sub_list, topic):
         log.msg('Sending news to %d subscribers' % len(sub_list))
         for sub in sub_list:
-            host = sub['host']
-            # since = sub['time']
-            body = StringProducer("foo=bar")
+            since = sub.get('last')
+            if since is None:
+                raise NotImplementedError
+
+            from pub import Topic
+            d = Topic(self.db).get_feed_entries(topic=topic, since=since)
+            d.addCallback(self.send_news_to_subscriber, sub)
+
+
+    def send_news_to_subscriber(self, entries, sub):
+
+            if not entries:
+                print 'No entries'
+                return
+
+            entries = sorted(entries, key=lambda i: i['time'])
+
+            cb_url = sub['cb_url']
+            topic = sub['topic']
+
+            for item in entries:
+                print item['data']['id'], item['time']
+
+            body = StringProducer("data=%s" %
+                            json.dumps([e['data'] for e in entries]))
+
             headers = Headers({
-                'User-Agent': ['PubSubHub'],
                 'Content-Type': ['application/x-www-form-urlencoded'],
             })
+
             d = agent.request('POST',
-                              str("http://%s/" % host),
+                              str(cb_url),
                               headers,
                               body)
-            d.addCallback(self.mark_as_sent, feed=feed, host=host, time=datetime.now())
 
-    def mark_as_sent(self, response, feed, host, time):
+            d.addCallback(self.mark_as_sent,
+                          topic=topic,
+                          cb_url=cb_url,
+                          time=entries[-1]['time'])
+
+
+    def mark_as_sent(self, response, topic, cb_url, time):
         if response.code != 200:
+            print '*'*80, '\n', response.code, cb_url, '*'*80
             raise NotImplementedError
 
-        self._db.update({
-            "feed": feed,
-            'host': host,
+        self.db.sub.update({
+            "topic": topic,
+            'cb_url': cb_url,
         }, {
             '$set': {"last": time},
         })
-        log.msg('Feed %(feed)s marked as sent for host %(host)s at %(time)s' % vars())
-
+        log.msg('Topic %(topic)s marked as sent for %(cb_url)s at %(time)s'
+                                                                    % vars())
 
 
 class NewsSender(Protocol):
@@ -111,33 +133,33 @@ class NewsSender(Protocol):
 
 class SubscribeHandler(BaseHandler, Resource):
 
-    def parse_request(self, request):
-        try:
-            feed = request.args["feed"][0] #TODO: не только один первый
-        except (KeyError):
-            feed = None
-        try:
-            host = request.args["host"][0]
-        except (KeyError):
-            host = request.client.host
-
-        return {"feed": feed, "host": host}
-
     def render_GET(self, request):
         """Get subscriptions for host"""
-        params = self.parse_request(request)
-        Subscription(self.db).find(host=params['host'],
-                                   feed=params['feed'],
-                                   success=(self._success, request),
-                                   failure=(self._failure, request),
-                                )
+
+        cb_url = request.args.get('hub.callback', [None])[0]
+        topic = request.args.get('hub.topic', [None])[0]
+
+        d = Subscription(self.db).find(cb_url=cb_url, topic=topic)
+        d.addCallback(self._success, request)
+        d.addErrback(self._failure, request)
+
         return NOT_DONE_YET
 
     def render_POST(self, request):
-        params = self.parse_request(request)
-        Subscription(self.db).create(params['host'], params['feed'])
+        mode = request.args['hub.mode'][0]
+        cb_url = request.args.get('hub.callback', [None])[0]
+        topic = request.args.get('hub.topic', [None])[0]
+
+        if mode == 'subscribe':
+            Subscription(self.db).create(cb_url=cb_url,
+                                         topic=topic)
+
+        elif mode == 'unsubscribe':
+            Subscription(self.db).remove(cb_url=cb_url,
+                                         topic=topic)
+
+        else:
+            raise NotImplementedError
+
         return self.mk_response(True, None)
 
-    def render_DELETE(self, request):
-        Subscription(self.db).remove(self.get_host(request))
-        return self.mk_response(True, None)

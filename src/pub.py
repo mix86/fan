@@ -20,7 +20,7 @@ from base import Controller, ParametrizedSingleton
 agent = Agent(reactor)
 
 
-class FeedFetcher(Protocol):
+class TopicFetcher(Protocol):
     def __init__(self, edges, finished):
         self.finished = finished
         self.response = ''
@@ -28,10 +28,11 @@ class FeedFetcher(Protocol):
         self.right_edge = edges[1]
 
     def parse_response(self, data):
-        feed = feedparser.parse(data)
-        for entry in feed.entries:
-            updated_parsed = entry.pop('updated_parsed')
-            updated = datetime(*(updated_parsed[:6] + updated_parsed[7:8]))
+        topic = feedparser.parse(data)
+        for entry in topic.entries:
+            entry.pop('updated_parsed')
+            #TODO: feedprser date parse
+            updated = datetime.strptime(entry['updated'], '%Y-%m-%dT%H:%M:%S.%fZ')
             if self.left_edge <= updated <= self.right_edge or 1:
                 yield entry, updated
 
@@ -42,45 +43,45 @@ class FeedFetcher(Protocol):
         self.finished.callback(self.parse_response(self.response))
 
 
-class Feed(Controller):
-    collection = 'feed'
+class Topic(Controller):
+    collection = 'topic'
 
-    def create_feed_entry(self, generator, feed, url):
+    def create_feed_entries(self, generator, topic, url):
         i = 0
         for entry, updated in generator:
-            self.db.feed.insert({
-                'feed': feed,
+            print 'updated', updated, type(updated)
+            print 'got', entry['id']
+            self.db.topic.insert({
+                'topic': topic,
                 'url': url,
                 'data': entry,
                 'time': updated,
             }, safe=True)
             i += 1
 
-        log.msg('Fetched %(i)d entries in feed %(feed)s' % vars())
+        log.msg('Fetched %(i)d entries in topic %(topic)s' % vars())
 
-        # self.db.ping.remove({
-        #     'feed': feed,
-        #     'url': url,
-        #     'locked': self.id(),
-        # })
+        Subscription(self.db).send_news(topic=topic)
 
-        # Subscription(self.db).send_news(feed=feed)
+    def get_feed_entries(self, topic, since):
+        d = self.db.topic.find({
+            'topic': topic,
+            'time': {'$gt': since},
+        })
 
-    def process_news(self, response, feed, url, edges):
+        return d
 
+    def process_news(self, response, topic, url, edges):
         finished = Deferred()
-
-        finished.addCallback(self.create_feed_entry, feed=feed, url=url)
-
-        response.deliverBody(FeedFetcher(edges=edges, finished=finished))
-
+        finished.addCallback(self.create_feed_entries, topic=topic, url=url)
+        response.deliverBody(TopicFetcher(edges=edges, finished=finished))
         return finished
 
 
-    def get_news(self, cb_result, feed, url):
+    def get_news(self, cb_result, topic, url):
 
         self.db.ping.update({
-            'feed': feed,
+            'topic': topic,
             'url': url,
             'locked': False,
         }, {
@@ -88,33 +89,37 @@ class Feed(Controller):
         }, multi=True, safe=True)
 
         d = self.db.ping.find({
-            'feed': feed,
+            'topic': topic,
             'url': url,
             'locked': self.id(),
         })
 
-        d.addCallback(self.get_news_slice, feed, url)
+        d.addCallback(self.get_news_slice, topic, url)
 
-    def get_news_slice(self, result, feed, url):
+    def get_news_slice(self, result, topic, url):
+        if not result:
+            log.msg('News slice is empty!')
+            return
+
         edges = result[0]['time'], result[-1]['time']
         d = agent.request('GET', url)
-        d.addCallback(self.process_news, feed=feed, url=url, edges=edges)
+        d.addCallback(self.process_news, topic=topic, url=url, edges=edges)
 
-    def register_ping(self, feed, url, time):
+    def register_ping(self, topic, url, time):
         self.db.ping.insert({
-            'feed': feed,
+            'topic': topic,
             'url': url,
             'time': time,
             'locked': False,
         }, safe=True)
 
         d = Deferred()
-        d.addCallback(self.get_news, feed=feed, url=url)
+        d.addCallback(self.get_news, topic=topic, url=url)
 
-        FeedEntryBuffer(feed).put(d)
+        TopicEntryBuffer(topic).put(d)
 
 
-class FeedEntryBuffer(ParametrizedSingleton):
+class TopicEntryBuffer(ParametrizedSingleton):
     delay = 1
 
     def put(self, d):
@@ -129,13 +134,13 @@ class FeedEntryBuffer(ParametrizedSingleton):
 class PublishHandler(BaseHandler, Resource):
     def render_POST(self, request):
         try:
-            feed = request.args["feed"][0].strip()
-            url = request.args["url"][0].strip()
+            topic = request.args["hub.topic"][0].strip()
+            url = request.args["hub.url"][0].strip()
         except (KeyError):
             return self.mk_response(None, True)
 
         time = datetime.now()
 
-        Feed(self.db).register_ping(feed=feed, url=url, time=time)
+        Topic(self.db).register_ping(topic=topic, url=url, time=time)
 
         return self.mk_response(True, None)
