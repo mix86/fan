@@ -1,13 +1,15 @@
 # encoding: utf-8
+
 import simplejson as json
+
 from twisted.internet import reactor
 from twisted.web.resource import Resource
 from twisted.internet.protocol import Protocol
 from twisted.python import log
 from twisted.web.client import Agent
 from twisted.web.http_headers import Headers
-
 from twisted.web.server import NOT_DONE_YET
+
 from base import BaseHandler
 from utils import StringProducer
 
@@ -69,7 +71,7 @@ class Subscription(object):
                 raise NotImplementedError
 
             from pub import Topic
-            d = Topic(self.db).get_feed_entries(topic=topic, since=since)
+            d = Topic(db=self.db, topic=topic).find_entries(since=since)
             d.addCallback(self.send_news_to_subscriber, sub)
 
 

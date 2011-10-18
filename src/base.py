@@ -31,7 +31,6 @@ class Controller(object):
     def __init__(self, db, *args, **kwargs):
         super(Controller, self).__init__(*args, **kwargs)
         self.db = db
-        self._db = getattr(db, self.collection)
 
     def id(self):
         return id(self)
