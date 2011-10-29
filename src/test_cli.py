@@ -107,7 +107,7 @@ ping_counter = 0
 def ping_sent(response):
     global ping_counter
     print 'ping sent: ', response.code
-    delay = 5 if ping_counter % 10 == 0 else .1
+    delay = 2 if ping_counter % 10 == 0 else .1
     ping_counter += 1
     reactor.callLater(delay, send_ping, None)
 

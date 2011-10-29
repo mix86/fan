@@ -31,4 +31,7 @@ reactor.listenTCP(8080, server.Site(root))
 
 # print dir(reactor)
 
+from sub import send_foo
+reactor.callLater(5, send_foo, db_foo)
+
 reactor.run()

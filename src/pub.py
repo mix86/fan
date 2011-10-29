@@ -11,7 +11,6 @@ from twisted.internet.error import AlreadyCalled
 from twisted.web.client import Agent
 from twisted.internet.defer import Deferred
 
-from sub import Subscription
 from base import Controller, ParametrizedSingleton, BaseHandler
 
 agent = Agent(reactor)
@@ -61,8 +60,6 @@ class Topic(Controller):
             'i': i,
             'topic': self.topic,
         })
-
-        Subscription(self.db).send_news(topic=self.topic)
 
     def find_entries(self, since):
         d = self.db.topic.find({

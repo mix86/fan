@@ -12,8 +12,14 @@ from twisted.web.server import NOT_DONE_YET
 
 from base import BaseHandler
 from utils import StringProducer
+from pub import Topic
 
 agent = Agent(reactor)
+
+def send_foo(db):
+    #TODO: переделать на получение подписок из db.sub
+    Subscription(db).send_news(topic='foo')
+    reactor.callLater(1, send_foo, db)
 
 class Subscription(object):
     def __init__(self, db):
@@ -70,7 +76,6 @@ class Subscription(object):
             if since is None:
                 raise NotImplementedError
 
-            from pub import Topic
             d = Topic(db=self.db, topic=topic).find_entries(since=since)
             d.addCallback(self.send_news_to_subscriber, sub)
 
