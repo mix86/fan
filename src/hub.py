@@ -13,14 +13,24 @@ from pub import PublishHandler
 
 log.startLogging(sys.stdout)
 
-
-class Root(Resource):
-    isLeaf = False
-
 # mongo connection
 db = txmongo.lazyMongoConnectionPool()
 
 db_foo = db.foo
+
+def start_sending_timers():
+    from sub import SendingTimer
+    SendingTimer(db_foo).start()
+
+
+def start_ping_timers():
+    from pub import PingProcessingTimer
+    PingProcessingTimer(db_foo).start()
+
+
+class Root(Resource):
+    isLeaf = False
+
 
 # http resources
 root = Root()
@@ -29,9 +39,7 @@ root.putChild("pub", PublishHandler(db_foo))
 
 reactor.listenTCP(8080, server.Site(root))
 
-# print dir(reactor)
 
-from sub import send_foo
-reactor.callLater(5, send_foo, db_foo)
-
+start_ping_timers()
+start_sending_timers()
 reactor.run()

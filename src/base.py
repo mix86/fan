@@ -2,6 +2,8 @@
 
 import simplejson as json
 from twisted.web.resource import Resource
+from twisted.internet import reactor
+
 from utils import norm
 
 class BaseHandler(object):
@@ -36,15 +38,17 @@ class Controller(object):
         return id(self)
 
 
-class ParametrizedSingleton(object):
-    def __new__(cls, param, *args, **kwargs):
-        try:
-            if param in cls._instances:
-                return cls._instances[param]
-        except AttributeError:
-            cls._instances = {}
+class Scheduler(Controller):
+    def _run_after_delay(self, ign):
+        reactor.callLater(1, self.run)
 
-        instance = super(ParametrizedSingleton, cls).__new__(cls, *args, **kwargs)
-        cls._instances[param] = instance
-        return instance
+    def run(self):
+        raise NotImplemented
+
+
+class NoNews(Exception):
+    pass
+
+def log_failure(failure):
+    log.msg(failure.getErrorMessage())
 

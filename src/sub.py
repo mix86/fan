@@ -9,25 +9,35 @@ from twisted.python import log
 from twisted.web.client import Agent
 from twisted.web.http_headers import Headers
 from twisted.web.server import NOT_DONE_YET
+from twisted.internet.defer import Deferred
 
-from base import BaseHandler
+from base import Controller, BaseHandler, Scheduler
 from utils import StringProducer
 from pub import Topic
+from base import NoNews, log_failure
+
 
 agent = Agent(reactor)
 
-def send_foo(db):
-    #TODO: переделать на получение подписок из db.sub
-    Subscription(db).send_news(topic='foo')
-    reactor.callLater(1, send_foo, db)
 
-class Subscription(object):
-    def __init__(self, db):
-        super(Subscription, self).__init__()
-        self.db = db
-        self._db = db.sub
+class SendingScheduler(Scheduler):
 
-    def find(self, cb_url=None, topic=None):
+    def start(self):
+        self._run_after_delay(None)
+
+    def run(self):
+        d = Deferred()
+        subscription = Subscription(self.db)
+        d.addCallback(subscription.find)
+        d.addCallback(subscription.send_news)
+        d.addErrback(log_failure)
+        d.addCallback(self._run_after_delay)
+        d.callback(None)
+
+
+class Subscription(Controller):
+
+    def find(self, ign, cb_url=None, topic=None):
         q = {}
 
         if cb_url:
@@ -36,7 +46,7 @@ class Subscription(object):
         if topic:
             q.update({"topic": topic})
 
-        d = self._db.find(q)
+        d = self.db.sub.find(q)
 
         return d
 
@@ -64,32 +74,32 @@ class Subscription(object):
             'topic': topic,
         })
 
-    def send_news(self, topic):
-        log.msg('Send news called for %s' % topic)
-        d = self.find(topic=topic)
-        d.addCallback(self._really_send_news, topic)
-
-    def _really_send_news(self, sub_list, topic):
+    def send_news(self, sub_list):
         log.msg('Sending news to %d subscribers' % len(sub_list))
         for sub in sub_list:
+            topic = sub['topic']
+            cb_url = sub['cb_url']
             since = sub.get('last')
+            log.msg('Send topic %(topic)s news' % {'topic': topic})
             if since is None:
                 raise NotImplementedError
 
             d = Topic(db=self.db, topic=topic).find_entries(since=since)
-            d.addCallback(self.send_news_to_subscriber, sub)
+            d.addCallback(self.push_to_subscriber, sub)
+            d.addCallback(self.mark_as_sent,
+                          topic=topic,
+                          cb_url=cb_url)
+            d.addErrback(self.catch_nonews)
 
 
-    def send_news_to_subscriber(self, entries, sub):
+    def push_to_subscriber(self, entries, sub):
 
             if not entries:
-                print 'No entries'
-                return
+                raise NoNews
 
             entries = sorted(entries, key=lambda i: i['time'])
 
             cb_url = sub['cb_url']
-            topic = sub['topic']
 
             for item in entries:
                 print item['data']['id'], item['time']
@@ -106,16 +116,25 @@ class Subscription(object):
                               headers,
                               body)
 
-            d.addCallback(self.mark_as_sent,
-                          topic=topic,
-                          cb_url=cb_url,
-                          time=entries[-1]['time'])
+            d.addCallback(self.check_response, time=entries[-1]['time'])
 
+            return d
 
-    def mark_as_sent(self, response, topic, cb_url, time):
+    def check_response(self, response, time):
         if response.code != 200:
-            print '*'*80, '\n', response.code, cb_url, '*'*80
+            print '*'*80, '\n', response.code, '*'*80
             raise NotImplementedError
+
+        return time
+
+    def catch_nonews(self, failure):
+        if failure.check(NoNews):
+            log.msg('Nothing to send!')
+        else:
+            return failure
+
+    def mark_as_sent(self, time, topic, cb_url):
+        assert time, 'Time is none!!!'
 
         self.db.sub.update({
             "topic": topic,
