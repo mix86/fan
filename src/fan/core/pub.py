@@ -1,18 +1,13 @@
 # encoding: utf-8
 
-from datetime import datetime
-
-import feedparser
-from twisted.web.resource import Resource
 from twisted.python import log
 from twisted.internet import reactor
-from twisted.internet.protocol import Protocol
 from twisted.web.client import Agent
 from twisted.internet.defer import Deferred
 
-from base import Controller, BaseHandler, Scheduler
-from base import NoNews, log_failure
-
+from fan.core.base import Controller, Scheduler
+from fan.core.fail import NoNews, log_failure
+from fan.core.helpers import TopicFetcher
 agent = Agent(reactor)
 
 class PingProcessingScheduler(Scheduler):
@@ -46,29 +41,6 @@ class PingProcessingScheduler(Scheduler):
             d.addCallbacks(topic.create_entries, topic.nothing_to_update)
             d.addErrback(log_failure)
             d.callback(None)
-
-
-class TopicFetcher(Protocol):
-    def __init__(self, edges, finished):
-        self.finished = finished
-        self.response = ''
-        self.left_edge, self.right_edge = edges
-
-    def parse_response(self, data):
-        topic = feedparser.parse(data)
-        for entry in topic.entries:
-            entry.pop('updated_parsed')
-            #TODO: feedprser date parse
-            updated = datetime.strptime(entry['updated'], '%Y-%m-%dT%H:%M:%S.%fZ')
-            if self.left_edge <= updated <= self.right_edge or 1: #TODO: убрать
-                yield entry, updated
-
-    def dataReceived(self, bytes):
-        self.response += bytes
-
-    def connectionLost(self, reason):
-        generator = self.parse_response(self.response)
-        self.finished.callback(generator)
 
 
 class Topic(Controller):
@@ -180,14 +152,3 @@ class Topic(Controller):
         }, safe=True)
 
 
-class PublishHandler(BaseHandler, Resource):
-    def render_POST(self, request):
-        try:
-            topic = request.args["hub.topic"][0].strip()
-            url = request.args["hub.url"][0].strip()
-        except KeyError, e:
-            return self.mk_response(None, e)
-
-        Topic(db=self.db, topic=topic, url=url).register(time=datetime.now())
-
-        return self.mk_response(True, None)

@@ -8,7 +8,7 @@ from twisted.web import server
 from twisted.web.resource import Resource
 from twisted.web.client import Agent
 from twisted.web.http_headers import Headers
-from utils import StringProducer
+from fan.utils import StringProducer
 
 
 from twisted.internet import reactor
