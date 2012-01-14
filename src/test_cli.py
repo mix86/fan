@@ -10,9 +10,10 @@ from twisted.web.client import Agent
 from twisted.web.http_headers import Headers
 from fan.utils import StringProducer
 
-
 from twisted.internet import reactor
 from twisted.python import log
+
+from fan.core.rss import RSS
 
 log.startLogging(sys.stdout)
 
@@ -29,39 +30,40 @@ class Publisher(Resource):
     isLeaf = True
     def render_GET(self, request):
         global entries
-        urn = uuid4().get_urn()
-        updated = datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-        topic = (
-            '<?xml version="1.0" encoding="utf-8"?>\n'
-            '<feed xmlns="http://www.w3.org/2005/Atom">\n'
-            '    <title>Example Feed</title>\n'
-            '    <subtitle>A subtitle.</subtitle>\n'
-            '    <link href="%(domain)s/feed/" rel="self" />\n'
-            '    <id>%(urn)s</id>\n'
-            '    <updated>%(updated)s</updated>\n'
-            '%(entries)s'
-            '</feed>\n'
-        ) % {
-            'domain': DOMAIN,
-            'urn': urn,
-            'updated': updated,
-            'entries': '\n'.join(entries),
-        }
-        entries = []
+        # urn = uuid4().get_urn()
+        # updated = datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+        # topic = (
+        #     '<?xml version="1.0" encoding="utf-8"?>\n'
+        #     '<feed xmlns="http://www.w3.org/2005/Atom">\n'
+        #     '    <title>Example Feed</title>\n'
+        #     '    <subtitle>A subtitle.</subtitle>\n'
+        #     '    <link href="%(domain)s/feed/" rel="self" />\n'
+        #     '    <id>%(urn)s</id>\n'
+        #     '    <updated>%(updated)s</updated>\n'
+        #     '%(entries)s'
+        #     '</feed>\n'
+        # ) % {
+        #     'domain': DOMAIN,
+        #     'urn': urn,
+        #     'updated': updated,
+        #     'entries': '\n'.join(entries),
+        # }
+        if entries:
+            topic = RSS().generate(entries)
+            entries = []
+        else:
+            topic = ''
         return topic
 
 class Receiver(Resource):
     isLeaf = True
     def render_POST(self, request):
-        assert request.args
-        data = request.args['data'][0]
-        data = json.loads(data)
-
-        for item in data:
-            urn = item['id']
-            orig_urn = stack[0]
-            print '<=', urn
-            if urn == orig_urn:
+        topic = RSS().parse(request.content.read())
+        for entry in topic.entries:
+            sent_urn = entry['id']
+            received_urn = stack[0]
+            print '<=', sent_urn
+            if sent_urn == received_urn:
                 stack.pop(0)
                 print 'OK'
             else:
@@ -74,18 +76,16 @@ def send_ping(ing):
     global entries, stack
     urn = uuid4().get_urn()
     updated = datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-    entry = (
-        '    <entry>\n'
-        '        <title>Atom-Powered Robots Run Amok</title>\n'
-        '        <link href="%(domain)s/%(urn)s/" />\n'
-        '        <id>%(urn)s</id>\n'
-        '        <updated>%(updated)s</updated>\n'
-        '        <summary>Some text: %(urn)s.</summary>\n'
-        '    </entry>\n'
-    ) % {
-        'domain': DOMAIN,
-        'urn': urn,
-        'updated': updated,
+    entry = {
+        'topic': 'foo',
+        'url': "%s/%s/" % (DOMAIN, urn),
+        'data': {
+            'title': 'foo',
+            'link': "%s/%s/" % (DOMAIN, urn),
+            'summary': 'Some text: %s.' % urn,
+            'id': urn,
+            'updated': updated,
+        }
     }
 
     entries.append(entry)
@@ -107,7 +107,8 @@ ping_counter = 0
 def ping_sent(response):
     global ping_counter
     print 'ping sent: ', response.code
-    delay = 2 if ping_counter % 10 == 0 else .1
+    delay = 5 if ping_counter % 3 == 0 else 1
+    # delay = 5
     ping_counter += 1
     reactor.callLater(delay, send_ping, None)
 

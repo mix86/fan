@@ -6,4 +6,4 @@ class NoNews(Exception):
 
 
 def log_failure(failure):
-    log.msg(failure.getErrorMessage())
+    log.msg('ERROR: '+ failure.getErrorMessage())

@@ -2,31 +2,34 @@
 import sys
 
 sys.path.append('/home/mixael/dev/pubsub_proto/src')
+sys.path.append('/home/mixael/dev/pubsub_proto/contrib/pymongo')
+
 from twisted.web import server
 from twisted.web.resource import Resource
 from twisted.internet import reactor
 from twisted.python import log
 
-import txmongo
+# import txmongo
 
 from fan.http.sub import SubscribeHandler
 from fan.http.pub import PublishHandler
+from fan.db import db
 
 log.startLogging(sys.stdout)
 
 # mongo connection
-db = txmongo.lazyMongoConnectionPool()
+# db = txmongo.lazyMongoConnectionPool()
 
-db_foo = db.foo
+# db = db.fan
 
 def start_sending_timers():
     from fan.core.sub import SendingScheduler
-    SendingScheduler(db_foo).start()
+    SendingScheduler(db).start()
 
 
 def start_ping_timers():
     from fan.core.pub import PingProcessingScheduler
-    PingProcessingScheduler(db_foo).start()
+    PingProcessingScheduler(db).start()
 
 
 class Root(Resource):
@@ -35,8 +38,8 @@ class Root(Resource):
 
 # http resources
 root = Root()
-root.putChild("sub", SubscribeHandler(db_foo))
-root.putChild("pub", PublishHandler(db_foo))
+root.putChild("sub", SubscribeHandler(db))
+root.putChild("pub", PublishHandler(db))
 
 reactor.listenTCP(8080, server.Site(root))
 

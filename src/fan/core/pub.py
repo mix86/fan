@@ -23,17 +23,17 @@ class PingProcessingScheduler(Scheduler):
     def select_topics(self):
         return self.db.ping.group(
             condition={'locked': False},
-            keys=['topic', 'url'],
+            key=['topic', 'url'],
             reduce='function(doc, out){}',
             initial={}
         )
 
     def process_pings(self, result):
-        if not result['count']:
+        if not len(result):
             print "Nothing to process"
             return
 
-        for topic_params in result['retval']:
+        for topic_params in result:
             topic = Topic(db=self.db, **topic_params)
             d = Deferred()
             d.addCallback(topic.lock)

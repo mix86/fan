@@ -1,4 +1,9 @@
 # encoding: utf-8
+import simplejson as json
+
+from zope.interface import implements
+from twisted.internet.defer import succeed
+from twisted.web.iweb import IBodyProducer
 
 def norm(val):
     if isinstance(val, dict):
@@ -18,11 +23,6 @@ def norm(val):
     return val
 
 
-from zope.interface import implements
-
-from twisted.internet.defer import succeed
-from twisted.web.iweb import IBodyProducer
-
 class StringProducer(object):
     implements(IBodyProducer)
 
@@ -39,3 +39,21 @@ class StringProducer(object):
 
     def stopProducing(self):
         pass
+
+
+class FeedProducer(StringProducer):
+    def __init__(self, entries):
+        super(FeedProducer, self).__init__(self._make_body(entries))
+
+
+class JsonFeedProducer(FeedProducer):
+    def _make_body(self, entries):
+        return "data=%s" % json.dumps([e['data'] for e in entries])
+
+
+class AtomFeedProducer(FeedProducer):
+    def _make_body(self, entries):
+        from fan.core.rss import RSS
+        return RSS().generate(entries)
+
+

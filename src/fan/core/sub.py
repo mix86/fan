@@ -29,7 +29,7 @@ class SendingScheduler(Scheduler):
 
 class Subscription(Controller):
 
-    def find(self, ign, cb_url=None, topic=None):
+    def find(self, ign=None, cb_url=None, topic=None):
         q = {}
 
         if cb_url:
