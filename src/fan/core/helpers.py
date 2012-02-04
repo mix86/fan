@@ -24,12 +24,20 @@ class TopicFetcher(Protocol):
     def parse_response(self, data):
         topic = RSS().parse(data)
         for entry in topic.entries:
-            entry.pop('updated_parsed')
-            #TODO: feedprser date parse
-            updated = datetime.strptime(entry['updated'],
-                                        '%Y-%m-%dT%H:%M:%S.%fZ')
-            if self.left_edge <= updated <= self.right_edge or 1: #TODO: убрать
-                yield entry, updated
+            print '*'*8
+            updated_parsed = entry.pop('updated_parsed')
+            try:
+                updated = datetime.strptime(entry['updated'],
+                                            '%Y-%m-%dT%H:%M:%S.%f')
+            except ValueError:
+                updated = datetime(updated_parsed.tm_year,
+                                   updated_parsed.tm_mon,
+                                   updated_parsed.tm_mday,
+                                   updated_parsed.tm_hour,
+                                   updated_parsed.tm_min,
+                                   updated_parsed.tm_sec)
+
+            yield entry, updated
 
     def dataReceived(self, bytes):
         self.response += bytes

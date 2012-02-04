@@ -11,6 +11,8 @@ from fan.core.helpers import TopicFetcher
 agent = Agent(reactor)
 
 class PingProcessingScheduler(Scheduler):
+    """Таймер запускаючищий процесс обработки пингов"""
+    DELAY = 1
 
     def start(self):
         self._run_after_delay(None)
@@ -29,8 +31,11 @@ class PingProcessingScheduler(Scheduler):
         )
 
     def process_pings(self, result):
+        """
+        Запускает обработку пингов для каждого топика
+        """
         if not len(result):
-            print "Nothing to process"
+            log.msg("No pings found")
             return
 
         for topic_params in result:
@@ -39,6 +44,7 @@ class PingProcessingScheduler(Scheduler):
             d.addCallback(topic.lock)
             d.addCallback(topic.update)
             d.addCallbacks(topic.create_entries, topic.nothing_to_update)
+            d.addCallback(topic.clean_pings)
             d.addErrback(log_failure)
             d.callback(None)
 
@@ -74,7 +80,7 @@ class Topic(Controller):
         """
         Разблокирует пинги (по сути откат)
         """
-        print 'UNLOCK!!!!!!!!!!!'
+        log.msg('Can\'n fetch topic! I\'ll try later')
         self.db.ping.update({
             'topic': self.topic,
             'url': self.url,
@@ -84,6 +90,14 @@ class Topic(Controller):
         }, multi=True, safe=True)
 
         return failure
+
+    def clean_pings(self, ign):
+        log.msg('Delete old pings')
+        self.db.ping.remove({
+            'topic': self.topic,
+            'url': self.url,
+            'locked': self.id(),
+        })
 
     def update(self, result):
         """
@@ -122,12 +136,16 @@ class Topic(Controller):
         """
         i = 0
         for entry, updated in generator:
-            self.db.topic.insert({
+            record = {
                 'topic': self.topic,
                 'url': self.url,
                 'data': entry,
                 'time': updated,
-            }, safe=True)
+            }
+            self.db.topic.update(
+                record,
+                {'$set': record},
+                upsert=True, safe=True)
             i += 1
 
         log.msg('Created %(i)d entries in topic %(topic)s' % {
@@ -144,6 +162,7 @@ class Topic(Controller):
         return d
 
     def register(self, time):
+        """Регистрирует пинг"""
         self.db.ping.insert({
             'topic': self.topic,
             'url': self.url,

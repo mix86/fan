@@ -1,7 +1,8 @@
 # encoding: utf-8
 import sys
 sys.path = [
-    '/home/mixael/dev/pubsub_proto/src',
+    '/home/mixael/dev/fan/src',
+    '/home/mixael/dev/fan/contrib'
 ] + sys.path
 import getopt
 import threading
@@ -17,10 +18,9 @@ entries_generator = None
 def _entries_generator(host, port, topic):
     counter = 0
     while True:
-        updated = datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+        updated = datetime.now().isoformat()
         content = str(counter)
-        # sys.stdout.write('%s ' % content)
-        # sys.stdout.flush()
+
         yield {
             'topic': topic,
             'url': "http://%s:%d/%s/" % (host, port, content),

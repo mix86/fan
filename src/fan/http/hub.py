@@ -1,9 +1,6 @@
 # encoding: utf-8
 import sys
 
-sys.path.append('/home/mixael/dev/pubsub_proto/src')
-sys.path.append('/home/mixael/dev/pubsub_proto/contrib/pymongo')
-
 from twisted.web import server
 from twisted.web.resource import Resource
 from twisted.internet import reactor
@@ -41,9 +38,10 @@ root = Root()
 root.putChild("sub", SubscribeHandler(db))
 root.putChild("pub", PublishHandler(db))
 
-reactor.listenTCP(8080, server.Site(root))
-
+# reactor.listenTCP(8080, server.Site(root))
 
 start_ping_timers()
 start_sending_timers()
-reactor.run()
+# reactor.run()
+
+factory = server.Site(root)

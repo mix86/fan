@@ -9,6 +9,7 @@ from fan.core import Topic
 
 class PublishHandler(BaseHandler, Resource):
     def render_POST(self, request):
+        """Регистрация пинга"""
         try:
             topic = request.args["hub.topic"][0].strip()
             url = request.args["hub.url"][0].strip()

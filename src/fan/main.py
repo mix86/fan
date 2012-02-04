@@ -2,10 +2,17 @@
 import sys
 
 sys.path = [
-    '/home/mixael/dev/pubsub_proto/src',
-    '/home/mixael/dev/pubsub_proto/contrib/pymongo'
+    '/home/mixael/dev/fan/src',
+    '/home/mixael/dev/fan/contrib'
 ] + sys.path
 
 
-if __name__ == '__main__':
-    import fan.http.hub
+from twisted.application import service, internet
+from fan.http.hub import factory
+
+def getWebService():
+    return internet.TCPServer(8080, factory)
+
+application = service.Application("Fan")
+service = getWebService()
+service.setServiceParent(application)

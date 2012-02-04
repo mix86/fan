@@ -1,5 +1,6 @@
 # encoding: utf-8
 
+from datetime import datetime
 
 from twisted.python import log
 from twisted.internet.defer import Deferred
@@ -10,6 +11,7 @@ from fan.core.distribute import Distributor
 
 
 class SendingScheduler(Scheduler):
+    DELAY = 1
 
     def start(self):
         self._run_after_delay(None)
@@ -51,6 +53,7 @@ class Subscription(Controller):
             '$set': {
                 'topic': topic,
                 'cb_url': cb_url,
+                'last': datetime.now()
             },
         }, upsert=True, safe=True)
 
