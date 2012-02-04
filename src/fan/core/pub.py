@@ -8,11 +8,14 @@ from twisted.internet.defer import Deferred
 from fan.core.base import Controller, Scheduler
 from fan.core.fail import NoNews, log_failure
 from fan.core.helpers import TopicFetcher
+from fan import settings
+from fan.utils import smart_str
+
 agent = Agent(reactor)
 
 class PingProcessingScheduler(Scheduler):
     """Таймер запускаючищий процесс обработки пингов"""
-    DELAY = 1
+    DELAY = settings.FETCHING_DELAY
 
     def start(self):
         self._run_after_delay(None)
@@ -53,7 +56,7 @@ class Topic(Controller):
     def __init__(self, topic, url=None, *args, **kwargs):
         super(Topic, self).__init__(*args, **kwargs)
         self.topic = topic
-        self.url = str(url)
+        self.url = smart_str(url)
 
     def lock(self, ign):
         """

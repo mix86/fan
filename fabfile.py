@@ -11,6 +11,7 @@ project_path = '/Users/mixael/dev/yandex/fan'
 remote_path = '~/dev/fan'
 
 def _rsync():
+    run('mkdir -p %s' % remote_path)
     rsync_project(remote_dir=remote_path + '/../',
                   local_dir=project_path,
                   delete=False,

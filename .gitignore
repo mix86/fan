@@ -2,3 +2,4 @@ contrib
 examples
 *.sublime-*
 .ropeproject
+*.conf.local

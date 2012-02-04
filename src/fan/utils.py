@@ -23,6 +23,18 @@ def norm(val):
     return val
 
 
+def smart_str(s, encoding='utf-8', errors='strict'):
+    """
+    Returns a bytestring version of 's', encoded as specified in 'encoding'.
+    """
+    if isinstance(s, unicode):
+        return s.encode(encoding, errors)
+    elif s and encoding != 'utf-8':
+        return s.decode('utf-8', errors).encode(encoding, errors)
+    else:
+        return s
+
+
 class StringProducer(object):
     implements(IBodyProducer)
 

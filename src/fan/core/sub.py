@@ -8,10 +8,10 @@ from twisted.internet.defer import Deferred
 from fan.core.base import Controller, Scheduler
 from fan.core.fail import log_failure
 from fan.core.distribute import Distributor
-
+from fan import settings
 
 class SendingScheduler(Scheduler):
-    DELAY = 1
+    DELAY = settings.SENDING_DELAY
 
     def start(self):
         self._run_after_delay(None)

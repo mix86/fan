@@ -16,6 +16,7 @@ Depends:
   python-simplejson,
   python-pyrss2gen,
   python-feedparser,
+  python-granular-settings,
 XB-Python-Version: ${python:Versions}
 Description: Вентилятор
 

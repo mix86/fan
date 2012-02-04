@@ -24,7 +24,6 @@ class TopicFetcher(Protocol):
     def parse_response(self, data):
         topic = RSS().parse(data)
         for entry in topic.entries:
-            print '*'*8
             updated_parsed = entry.pop('updated_parsed')
             try:
                 updated = datetime.strptime(entry['updated'],

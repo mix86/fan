@@ -1,18 +1,15 @@
 # encoding: utf-8
 import sys
+import settings
 
-sys.path = [
-    '/home/mixael/dev/fan/src',
-    '/home/mixael/dev/fan/contrib'
-] + sys.path
-
+sys.path = settings.PATH + sys.path
 
 from twisted.application import service, internet
 from fan.http.hub import factory
 
-def getWebService():
-    return internet.TCPServer(8080, factory)
-
 application = service.Application("Fan")
-service = getWebService()
+service = internet.TCPServer(8080, factory)
 service.setServiceParent(application)
+
+print 'Fan hub started with settings:', ', '.join('%s=%s' % (attr, getattr(settings, attr))
+          for attr in dir(settings) if attr == attr.upper())

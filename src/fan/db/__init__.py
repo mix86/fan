@@ -2,7 +2,7 @@
 
 import pymongo
 from twisted.internet.threads import deferToThread
-
+from fan import settings
 
 COLLECTIONS = 'topic', 'ping', 'sub'
 
@@ -44,4 +44,5 @@ class AsyncDB(object):
         return super(AsyncDB, self).__getattribute__(name)
 
 
-db = AsyncDB(pymongo.ReplicaSetConnection(replicaSet='obmendev').fan)
+con = pymongo.ReplicaSetConnection(replicaSet=settings.DB['REPLICASET'])
+db = AsyncDB(getattr(con, settings.DB['NAME']))
