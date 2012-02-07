@@ -1,0 +1,10 @@
+
+DB.update({
+    'HOSTS': [
+        'obmen01f6.dev.tools.yandex.net',
+        'obmen02f6.dev.tools.yandex.net',
+        'obmen03f6.dev.tools.yandex.net',
+    ],
+    'NAME': 'fan_dev',
+    'REPLICASET': 'obmendev',
+})
