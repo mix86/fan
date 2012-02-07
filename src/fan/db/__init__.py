@@ -44,5 +44,5 @@ class AsyncDB(object):
         return super(AsyncDB, self).__getattribute__(name)
 
 
-con = pymongo.ReplicaSetConnection(replicaSet=settings.DB['REPLICASET'])
+con = pymongo.ReplicaSetConnection(','.join(settings.DB['HOSTS']), replicaSet=settings.DB['REPLICASET'])
 db = AsyncDB(getattr(con, settings.DB['NAME']))
