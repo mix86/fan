@@ -3,3 +3,10 @@ examples
 *.sublime-*
 .ropeproject
 *.conf.local
+build/*
+debian/*.debhelper.log
+debian/*.debhelper
+debian/*.substvars
+debian/fan/
+debian/files
+*.egg-info
