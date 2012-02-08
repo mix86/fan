@@ -1,6 +1,5 @@
-fan (0.0-1) unstable; urgency=low
+fan (0.0-4) unstable; urgency=low
 
-  * Initial release.
+  * Initial release
 
- -- Mikhail Petrov <mixael@yandex-team.ru>  Sun, 22 Jan 2012 04:08:41 +0400
-
+ -- Mikhail Petrov <mixael@yandex-team.ru>  Tue, 07 Feb 2012 00:55:25 +0400

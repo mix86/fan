@@ -1,15 +1,11 @@
 #!/usr/bin/make -f
 
-DEB_PYTHON_SYSTEM=pycentral
-DEB_PYTHON_MODULE_PACKAGES=fan
-DEB_PYTHON_DESTDIR=debian/fan
-include /usr/share/cdbs/1/rules/debhelper.mk
-include /usr/share/cdbs/1/class/python-distutils.mk
+#include /usr/share/cdbs/1/rules/debhelper.mk
+#include /usr/share/cdbs/1/class/makefile.mk
 
-# Don't compress .py files
-DEB_COMPRESS_EXCLUDE := .py
+%:
+	dh $@ --with python-central
 
-find debian -depth -name "*.pyc" -delete
-dh_clearvcs -pfan
-dh_environment -pfan
+override_dh_installinit:
+	dh_installinit --after dh_pycentral --noscripts
 
