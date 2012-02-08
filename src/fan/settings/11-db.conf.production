@@ -6,7 +6,7 @@ DB.update({
         'mysql01g.tools.yandex.net'
     ],
     'NAME': 'fan',
-    'REPLICASET': 'fan',
+    'REPLICASET': 'tools',
 })
 
 

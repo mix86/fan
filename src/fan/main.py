@@ -1,6 +1,9 @@
 # encoding: utf-8
 import sys
-import settings
+try:
+    import settings
+except ImportError:
+    from fan import settings
 
 sys.path = settings.PATH + sys.path
 

@@ -5,6 +5,7 @@ DB.update({
         'obmen02f6.dev.tools.yandex.net',
         'obmen03f6.dev.tools.yandex.net',
     ],
-    'NAME': 'fan_dev',
+    'NAME': 'fan',
     'REPLICASET': 'obmendev',
 })
+

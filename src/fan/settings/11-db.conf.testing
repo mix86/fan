@@ -5,6 +5,6 @@ DB.update({
         'mysql01g.test.tools.yandex.net'
     ],
     'NAME': 'fan',
-    'REPLICASET': 'fantest',
+    'REPLICASET': 'tools-test',
 })
 
