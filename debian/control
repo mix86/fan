@@ -13,6 +13,7 @@ Depends:
   ${shlibs:Depends}, 
   ${misc:Depends},
   python-twisted,
+  python-pymongo,
   python-simplejson,
   python-pyrss2gen,
   python-feedparser,
