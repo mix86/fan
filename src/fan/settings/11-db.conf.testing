@@ -1,8 +1,8 @@
 
 DB.update({
     'HOSTS': [
-        'mysql01f6.test.tools.yandex.net'
-        'mysql01g.test.tools.yandex.net'
+        'mysql01f6.test.tools.yandex.net',
+        'mysql01g.test.tools.yandex.net',
     ],
     'NAME': 'fan',
     'REPLICASET': 'tools-test',
