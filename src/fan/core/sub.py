@@ -53,7 +53,7 @@ class Subscription(Controller):
             '$set': {
                 'topic': topic,
                 'cb_url': cb_url,
-                'last': datetime.now()
+                'last': datetime.utcnow()
             },
         }, upsert=True, safe=True)
 

@@ -71,11 +71,11 @@ class Topic(Controller):
             '$set': {'locked': self.id()},
         }, multi=True, safe=True)
 
-        d = self.db.ping.find({
+        d = self.db.topic.find_one({
             'topic': self.topic,
-            'url': self.url,
-            'locked': self.id(),
-        })
+            # 'url': self.url,
+            # 'locked': self.id(),
+        }, sort=[('time', -1)])
 
         return d
 
@@ -110,9 +110,9 @@ class Topic(Controller):
         if not result:
             raise NoNews
 
-        edges = result[0]['time'], result[-1]['time']
-        d = agent.request('GET', self.url)
-        d.addCallback(self.fetch, edges=edges)
+        since = result[0]['time'].strftime('%Y-%m-%dT%H:%M:%S') #TODO: указывать TZ
+        d = agent.request('GET', "%s?since=%s" % (self.url, since))
+        d.addCallback(self.fetch, since=since)
         d.addErrback(self.unlock)
         return d
 
@@ -125,12 +125,12 @@ class Topic(Controller):
         else:
             return failure
 
-    def fetch(self, response, edges):
+    def fetch(self, response, since):
         """
         Скачивает обновления топика
         """
         finished = Deferred()
-        response.deliverBody(TopicFetcher(edges=edges, finished=finished))
+        response.deliverBody(TopicFetcher(since=since, finished=finished))
         return finished
 
     def create_entries(self, generator):

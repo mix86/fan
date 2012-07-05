@@ -40,6 +40,12 @@ class AsyncCollection(object):
         d.addErrback(retry_async, self.find, *args, **kwargs)
         return d
 
+    def find_one(self, *args, **kwargs):
+        d = deferToThread(self._proxy.find_one, *args, **kwargs)
+        d.addCallback(list)
+        d.addErrback(retry_async, self.find_one, *args, **kwargs)
+        return d
+
     @retry_sync
     def insert(self,  *args, **kwargs):
         return self._proxy.insert(*args, **kwargs)
